@@ -225,13 +225,22 @@ body {
   // ----- size and dynamic rendering -----
   var SIZE = parseInt(localStorage.getItem('2048-size')) || 4;
   function setSize(s) {
+    if (s === SIZE) return;
+    // Save current game before switching
+    saveGame();
     SIZE = s;
     localStorage.setItem('2048-size', s);
     document.querySelectorAll('.mode-btn').forEach(function(b) {
       b.classList.toggle('active', parseInt(b.dataset.size) === s);
     });
     rebuildGridBg();
-    init();
+    // Restore saved game for this size, or start fresh
+    var saved = loadGame();
+    if (saved) {
+      restoreGame(saved);
+    } else {
+      init();
+    }
   }
 
   function rebuildGridBg() {
@@ -315,19 +324,18 @@ body {
           keepPlaying: h.keepPlaying
         };
       }),
-      size: SIZE
-    };
+      };
     try {
-      localStorage.setItem('2048-save', JSON.stringify(state));
+      localStorage.setItem(saveKey(), JSON.stringify(state));
     } catch(e) {}
   }
 
   function loadGame() {
     try {
-      var raw = localStorage.getItem('2048-save');
+      var raw = localStorage.getItem(saveKey());
       if (!raw) return null;
       var state = JSON.parse(raw);
-      if (!state || state.size !== SIZE || !state.grid || state.grid.length !== SIZE) return null;
+      if (!state || !state.grid || state.grid.length !== SIZE) return null;
       // Ensure proper object shapes
       state.grid = state.grid.map(function(r) {
         return r.map(function(c) { return c ? { id: c.id, value: c.value } : null; });
@@ -348,8 +356,10 @@ body {
     }
   }
 
+  function saveKey() { return '2048-save-' + SIZE; }
+
   function clearSave() {
-    try { localStorage.removeItem('2048-save'); } catch(e) {}
+    try { localStorage.removeItem(saveKey()); } catch(e) {}
   }
 
   function restoreGame(state) {
@@ -393,7 +403,6 @@ body {
   // ================ Init ================
 
   function init() {
-    clearSave();
     best = parseInt(localStorage.getItem('2048-best')) || 0;
     bestEl.textContent = best;
     grid = Array.from({ length: SIZE }, function() { return Array(SIZE).fill(null); });
@@ -702,10 +711,13 @@ body {
   });
 
   // ----- buttons -----
-  document.getElementById('restart-btn').addEventListener('click', init);
+  document.getElementById('restart-btn').addEventListener('click', function() {
+    clearSave();
+    init();
+  });
   undoBtn.addEventListener('click', undo);
   overlayBtn.addEventListener('click', function() {
-    if (gameOver) init(); else { keepPlaying = true; overlay.classList.add('hidden'); }
+    if (gameOver) { clearSave(); init(); } else { keepPlaying = true; overlay.classList.add('hidden'); }
   });
 
   // resize
