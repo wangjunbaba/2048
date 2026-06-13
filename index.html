@@ -161,6 +161,31 @@ body {
   100% { transform: translateY(-40px); opacity: 0; }
 }
 
+/* welcome overlay */
+.welcome-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: #faf8ef;
+  display: flex; align-items: center; justify-content: center;
+}
+.welcome-overlay.hidden { display: none; }
+.welcome-content { text-align: center; padding: 20px; }
+.welcome-content h1 { font-size: clamp(48px,15vw,96px); font-weight: 800; color: #776e65; line-height: 1; }
+.welcome-content .sub { color: #bbada0; font-size: 16px; margin: 12px 0 32px; }
+.size-options { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.size-card {
+  background: #bbada0; color: #f9f6f2; border: none; border-radius: 12px;
+  padding: 28px 40px; cursor: pointer; transition: all 0.2s;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  min-width: 130px;
+}
+.size-card:hover { background: #a09183; transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.15); }
+.size-card:active { transform: scale(0.96); }
+.size-card .sl { font-size: 32px; font-weight: 700; }
+.size-card .sd { font-size: 13px; opacity: 0.85; }
+.size-card .sb { font-size: 12px; opacity: 0; transition: opacity 0.3s; min-height: 18px; }
+.size-card .sb.show { opacity: 0.9; }
+
 /* mobile */
 @media (max-width: 600px) {
   .btn { padding: 10px 14px; font-size: 14px; }
@@ -175,6 +200,25 @@ body {
 </style>
 </head>
 <body>
+<div class="welcome-overlay" id="welcome-overlay">
+  <div class="welcome-content">
+    <h1>2048</h1>
+    <p class="sub">选择棋盘大小开始游戏</p>
+    <div class="size-options">
+      <button class="size-card" data-size="4">
+        <span class="sl">4×4</span>
+        <span class="sd">经典模式</span>
+        <span class="sb" id="status-4"></span>
+      </button>
+      <button class="size-card" data-size="5">
+        <span class="sl">5×5</span>
+        <span class="sd">进阶挑战</span>
+        <span class="sb" id="status-5"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="container">
   <div class="header">
     <div class="title-section">
@@ -710,6 +754,48 @@ body {
     });
   });
 
+  // ----- size selection -----
+  function showWelcomeScreen() {
+    var sizes = [4, 5];
+    for (var i = 0; i < sizes.length; i++) {
+      var s = sizes[i];
+      var raw;
+      try { raw = localStorage.getItem('2048-save-' + s); } catch(e) {}
+      if (raw) {
+        try {
+          var parsed = JSON.parse(raw);
+          if (parsed && parsed.grid) {
+            var el = document.getElementById('status-' + s);
+            if (el) { el.textContent = '\u25b6 继续游戏'; el.classList.add('show'); }
+          }
+        } catch(e) {}
+      }
+    }
+    document.getElementById('welcome-overlay').classList.remove('hidden');
+  }
+
+  function startGame(size) {
+    SIZE = size;
+    localStorage.setItem('2048-size', size);
+    document.querySelectorAll('.mode-btn').forEach(function(b) {
+      b.classList.toggle('active', parseInt(b.dataset.size) === size);
+    });
+    rebuildGridBg();
+    document.getElementById('welcome-overlay').classList.add('hidden');
+    var saved = loadGame();
+    if (saved) {
+      restoreGame(saved);
+    } else {
+      init();
+    }
+  }
+
+  document.querySelectorAll('.size-card').forEach(function(card) {
+    card.addEventListener('click', function() {
+      startGame(parseInt(this.dataset.size));
+    });
+  });
+
   // ----- buttons -----
   document.getElementById('restart-btn').addEventListener('click', function() {
     clearSave();
@@ -737,17 +823,7 @@ body {
   });
 
   // ----- go! -----
-  rebuildGridBg();
-  document.querySelectorAll('.mode-btn').forEach(function(b) {
-    b.classList.toggle('active', parseInt(b.dataset.size) === SIZE);
-  });
-
-  var saved = loadGame();
-  if (saved) {
-    restoreGame(saved);
-  } else {
-    init();
-  }
+  showWelcomeScreen();
 })();
 </script>
 </body>
