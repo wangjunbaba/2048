@@ -227,7 +227,6 @@ body {
   function setSize(s) {
     SIZE = s;
     localStorage.setItem('2048-size', s);
-    // update active button
     document.querySelectorAll('.mode-btn').forEach(function(b) {
       b.classList.toggle('active', parseInt(b.dataset.size) === s);
     });
@@ -293,8 +292,108 @@ body {
     return el;
   }
 
-  // ----- init -----
+  // ================ Save / Load ================
+
+  function saveGame() {
+    var state = {
+      grid: grid.map(function(r) {
+        return r.map(function(c) { return c ? { id: c.id, value: c.value } : null; });
+      }),
+      score: score,
+      won: won,
+      gameOver: gameOver,
+      keepPlaying: keepPlaying,
+      nextId: nextId,
+      undoRemaining: undoRemaining,
+      history: history.map(function(h) {
+        return {
+          grid: h.grid.map(function(rr) {
+            return rr.map(function(cc) { return cc ? { id: cc.id, value: cc.value } : null; });
+          }),
+          score: h.score,
+          won: h.won,
+          keepPlaying: h.keepPlaying
+        };
+      }),
+      size: SIZE
+    };
+    try {
+      localStorage.setItem('2048-save', JSON.stringify(state));
+    } catch(e) {}
+  }
+
+  function loadGame() {
+    try {
+      var raw = localStorage.getItem('2048-save');
+      if (!raw) return null;
+      var state = JSON.parse(raw);
+      if (!state || state.size !== SIZE || !state.grid || state.grid.length !== SIZE) return null;
+      // Ensure proper object shapes
+      state.grid = state.grid.map(function(r) {
+        return r.map(function(c) { return c ? { id: c.id, value: c.value } : null; });
+      });
+      state.history = (state.history || []).map(function(h) {
+        return {
+          grid: h.grid.map(function(rr) {
+            return rr.map(function(cc) { return cc ? { id: cc.id, value: cc.value } : null; });
+          }),
+          score: h.score || 0,
+          won: h.won || false,
+          keepPlaying: h.keepPlaying || false
+        };
+      });
+      return state;
+    } catch(e) {
+      return null;
+    }
+  }
+
+  function clearSave() {
+    try { localStorage.removeItem('2048-save'); } catch(e) {}
+  }
+
+  function restoreGame(state) {
+    grid = state.grid;
+    score = state.score || 0;
+    won = state.won || false;
+    gameOver = state.gameOver || false;
+    keepPlaying = state.keepPlaying || false;
+    nextId = state.nextId || 1;
+    undoRemaining = state.undoRemaining != null ? state.undoRemaining : MAX_UNDO;
+    history = state.history || [];
+
+    scoreEl.textContent = score;
+    if (score > best) { best = score; bestEl.textContent = best; }
+
+    tileContainer.innerHTML = '';
+    tileEls = {};
+
+    for (var r = 0; r < SIZE; r++) {
+      for (var c = 0; c < SIZE; c++) {
+        var tile = grid[r][c];
+        if (!tile) continue;
+        var p = pos(r, c);
+        createTileEl(tile.id, tile.value, p.x, p.y, p.w, false);
+      }
+    }
+
+    updateUndoUI();
+
+    if (gameOver) {
+      overlayMsg.textContent = '😀 游戏结束';
+      overlayBtn.textContent = '再来一局';
+      overlay.classList.remove('hidden');
+    } else if (won && !keepPlaying) {
+      overlayMsg.textContent = '🎉 你赢了！';
+      overlayBtn.textContent = '继续游戏';
+      overlay.classList.remove('hidden');
+    }
+  }
+
+  // ================ Init ================
+
   function init() {
+    clearSave();
     best = parseInt(localStorage.getItem('2048-best')) || 0;
     bestEl.textContent = best;
     grid = Array.from({ length: SIZE }, function() { return Array(SIZE).fill(null); });
@@ -461,14 +560,19 @@ body {
         for (var c = 0; c < SIZE; c++)
           if (grid[r][c] && grid[r][c].value === WIN_VALUE) {
             won = true;
+            saveGame();
             setTimeout(function(){ showOverlay('🎉 你赢了！', '继续游戏'); }, 300);
             return true;
           }
     }
     if (isGameOver()) {
       gameOver = true;
+      saveGame();
       setTimeout(function(){ showOverlay('😀 游戏结束', '再来一局'); }, 300);
     }
+
+    // Auto-save after successful move
+    saveGame();
     return true;
   }
 
@@ -513,6 +617,7 @@ body {
       }
     }
     updateUndoUI();
+    saveGame(); // auto-save after undo
   }
 
   function showOverlay(msg, btnText) {
@@ -621,11 +726,16 @@ body {
 
   // ----- go! -----
   rebuildGridBg();
-  // set active class
   document.querySelectorAll('.mode-btn').forEach(function(b) {
     b.classList.toggle('active', parseInt(b.dataset.size) === SIZE);
   });
-  init();
+
+  var saved = loadGame();
+  if (saved) {
+    restoreGame(saved);
+  } else {
+    init();
+  }
 })();
 </script>
 </body>
