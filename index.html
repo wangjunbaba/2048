@@ -57,7 +57,9 @@ body {
 /* mode toggle */
 .mode-toggle {
   display: flex; gap: 4px; background: #cdc1b4; border-radius: 6px; padding: 3px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; flex-shrink: 0;
 }
+.mode-toggle::-webkit-scrollbar { display: none; }
 .mode-btn {
   background: transparent; color: #776e65; border: none; border-radius: 4px;
   padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
@@ -171,8 +173,8 @@ body {
 .welcome-content { text-align: center; padding: 20px; }
 .welcome-content h1 { font-size: clamp(48px,15vw,96px); font-weight: 800; color: #776e65; line-height: 1; }
 .welcome-content .sub { color: #bbada0; font-size: 16px; margin: 12px 0 32px; }
-.size-options { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-.size-card {
+.size-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 10px; max-width: 420px; margin: 0 auto; }
+.size-card { padding: 22px 20px;
   background: #bbada0; color: #f9f6f2; border: none; border-radius: 12px;
   padding: 28px 40px; cursor: pointer; transition: all 0.2s;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -181,8 +183,8 @@ body {
 }
 .size-card:hover { background: #a09183; transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.15); }
 .size-card:active { transform: scale(0.96); }
-.size-card .sl { font-size: 32px; font-weight: 700; }
-.size-card .sd { font-size: 13px; opacity: 0.85; }
+.size-card .sl { font-size: clamp(24px,6vw,32px); font-weight: 700; }
+.size-card .sd { font-size: 12px; opacity: 0.85; }
 .size-card .sb { font-size: 12px; opacity: 0; transition: opacity 0.3s; min-height: 18px; }
 .size-card .sb.show { opacity: 0.9; }
 
@@ -214,6 +216,21 @@ body {
         <span class="sl">5×5</span>
         <span class="sd">进阶挑战</span>
         <span class="sb" id="status-5"></span>
+      </button>
+      <button class="size-card" data-size="6">
+        <span class="sl">6×6</span>
+        <span class="sd">高手领域</span>
+        <span class="sb" id="status-6"></span>
+      </button>
+      <button class="size-card" data-size="7">
+        <span class="sl">7×7</span>
+        <span class="sd">大师之路</span>
+        <span class="sb" id="status-7"></span>
+      </button>
+      <button class="size-card" data-size="8">
+        <span class="sl">8×8</span>
+        <span class="sd">终极挑战</span>
+        <span class="sb" id="status-8"></span>
       </button>
     </div>
   </div>
@@ -326,18 +343,22 @@ body {
   function cellSize() { return (gameBoard.clientWidth - 8) / SIZE; }
   function pos(r, c) { var s = cellSize(); return { x: 4 + c * s, y: 4 + r * s, w: s }; }
 
+  function tileFontSize(value) {
+    var l = String(value).length;
+    if (SIZE <= 4) return l <= 2 ? 'clamp(22px,6vw,48px)' : l === 3 ? 'clamp(18px,5vw,40px)' : 'clamp(14px,4vw,32px)';
+    if (SIZE <= 5) return l <= 2 ? 'clamp(16px,4.5vw,36px)' : l === 3 ? 'clamp(14px,3.8vw,30px)' : 'clamp(11px,3vw,24px)';
+    if (SIZE <= 6) return l <= 2 ? 'clamp(12px,3.2vw,26px)' : l === 3 ? 'clamp(10px,2.8vw,22px)' : 'clamp(8px,2.2vw,18px)';
+    if (SIZE <= 7) return l <= 2 ? 'clamp(11px,2.8vw,22px)' : l === 3 ? 'clamp(9px,2.2vw,18px)' : 'clamp(7px,1.8vw,14px)';
+    return l <= 2 ? 'clamp(10px,2.5vw,20px)' : l === 3 ? 'clamp(8px,2vw,16px)' : 'clamp(6px,1.5vw,12px)';
+  }
+
   // ----- tiles -----
   function createTileEl(id, value, px, py, pw, isNew) {
     var el = document.createElement('div');
     el.className = 'tile' + (isNew ? ' is-new' : '');
     el.dataset.value = value;
     var len = String(value).length;
-    var fs;
-    if (SIZE > 4) {
-      fs = len <= 2 ? 'clamp(16px,4.5vw,36px)' : len === 3 ? 'clamp(14px,3.8vw,30px)' : 'clamp(11px,3vw,24px)';
-    } else {
-      fs = len <= 2 ? 'clamp(22px,6vw,48px)' : len === 3 ? 'clamp(18px,5vw,40px)' : 'clamp(14px,4vw,32px)';
-    }
+    var fs = tileFontSize(value);
     el.style.cssText = 'width:' + pw + 'px;height:' + pw + 'px;left:' + px + 'px;top:' + py + 'px;transform:translate(0,0);';
     el.innerHTML = '<div class="tile-inner" style="font-size:' + fs + '">' + value + '</div>';
     tileContainer.appendChild(el);
@@ -562,14 +583,7 @@ body {
           el.dataset.value = tile.value;
           el.querySelector('.tile-inner').textContent = tile.value;
         }
-        var len = String(tile.value).length;
-        if (SIZE > 4) {
-          el.querySelector('.tile-inner').style.fontSize =
-            len <= 2 ? 'clamp(16px,4.5vw,36px)' : len === 3 ? 'clamp(14px,3.8vw,30px)' : 'clamp(11px,3vw,24px)';
-        } else {
-          el.querySelector('.tile-inner').style.fontSize =
-            len <= 2 ? 'clamp(22px,6vw,48px)' : len === 3 ? 'clamp(18px,5vw,40px)' : 'clamp(14px,4vw,32px)';
-        }
+        el.querySelector('.tile-inner').style.fontSize = tileFontSize(tile.value);
       }
     }
 
@@ -756,7 +770,7 @@ body {
 
   // ----- size selection -----
   function showWelcomeScreen() {
-    var sizes = [4, 5];
+    var sizes = [4, 5, 6, 7, 8];
     for (var i = 0; i < sizes.length; i++) {
       var s = sizes[i];
       var raw;
